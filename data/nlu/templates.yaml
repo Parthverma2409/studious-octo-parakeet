@@ -1,0 +1,98 @@
+# D1 template families. Each `id` is a template FAMILY, and the train/dev/test
+# split is made over families, never over rows -- see packages/nlp/dataset.py.
+#
+# Placeholders: {booking_type} {origin} {destination} {date} {time} {provider}
+#               {booking_ref} {party_size} {relative_ref}
+# `origin` and `destination` both draw from the `city` lexicon.
+#
+# Templates give exact slot offsets for free, which hand-written examples do not.
+# What they do NOT give is natural variety: real speech is messier than any
+# template set. The LLM paraphrase pass (Phase 2, step 2) exists to fix that, and
+# until it runs, treat scores on this data as an optimistic ceiling.
+
+# ---------------------------------------------------------------- create (12)
+- {id: create_01, intent: create_booking, text: "book me a {booking_type} to {destination} on {date}"}
+- {id: create_02, intent: create_booking, text: "book a {booking_type} from {origin} to {destination} on {date}"}
+- {id: create_03, intent: create_booking, text: "I need a {booking_type} to {destination} {date} at {time}"}
+- {id: create_04, intent: create_booking, text: "reserve a {booking_type} in {destination} for {date}"}
+- {id: create_05, intent: create_booking, text: "kindly book a {booking_type} to {destination} on {date}"}
+- {id: create_06, intent: create_booking, text: "get me on a {booking_type} to {destination} {date} {time=morning}"}
+- {id: create_07, intent: create_booking, text: "book a {booking_type} for {party_size} people to {destination} on {date}"}
+- {id: create_08, intent: create_booking, text: "schedule an {booking_type=appointment} with {provider} on {date} at {time}"}
+- {id: create_09, intent: create_booking, text: "set up a {booking_type} to {destination} leaving at {time} on {date}"}
+- {id: create_10, intent: create_booking, text: "can you book a {booking_type} to {destination} for me on {date}"}
+- {id: create_11, intent: create_booking, text: "I want to fly to {destination} on {date}"}
+- {id: create_12, intent: create_booking, text: "add a {booking_type} to {destination} on {date} to my calendar"}
+
+# ------------------------------------------------------------ reschedule (10)
+- {id: resched_01, intent: reschedule_booking, text: "move {relative_ref} to {date}"}
+- {id: resched_02, intent: reschedule_booking, text: "shift {relative_ref} to {time}"}
+- {id: resched_03, intent: reschedule_booking, text: "prepone {relative_ref} to {date}"}
+- {id: resched_04, intent: reschedule_booking, text: "postpone {relative_ref} to {date} at {time}"}
+- {id: resched_05, intent: reschedule_booking, text: "reschedule {booking_ref} to {date}"}
+- {id: resched_06, intent: reschedule_booking, text: "change my {booking_type} to {destination} to {date}"}
+- {id: resched_07, intent: reschedule_booking, text: "can you push {relative_ref} to {time}"}
+- {id: resched_08, intent: reschedule_booking, text: "I need to move {relative_ref} to {date} instead"}
+- {id: resched_09, intent: reschedule_booking, text: "make {relative_ref} {date} instead of the current one"}
+- {id: resched_10, intent: reschedule_booking, text: "shift the {booking_type=appointment} with {provider} to {time}"}
+
+# ---------------------------------------------------------------- cancel (10)
+- {id: cancel_01, intent: cancel_booking, text: "cancel {relative_ref}"}
+- {id: cancel_02, intent: cancel_booking, text: "cancel booking {booking_ref}"}
+- {id: cancel_03, intent: cancel_booking, text: "drop my {booking_type} to {destination} on {date}"}
+- {id: cancel_04, intent: cancel_booking, text: "I don't need {relative_ref} anymore"}
+- {id: cancel_05, intent: cancel_booking, text: "please cancel the {booking_type} to {destination}"}
+- {id: cancel_06, intent: cancel_booking, text: "scrap {relative_ref}"}
+- {id: cancel_07, intent: cancel_booking, text: "remove {relative_ref} from my calendar"}
+- {id: cancel_08, intent: cancel_booking, text: "cancel the {booking_type=appointment} with {provider} on {date}"}
+- {id: cancel_09, intent: cancel_booking, text: "call off {relative_ref}"}
+- {id: cancel_10, intent: cancel_booking, text: "cancel my {booking_type} on {date}"}
+
+# ----------------------------------------------------------------- query (10)
+- {id: query_01, intent: query_status, text: "when is {relative_ref}"}
+- {id: query_02, intent: query_status, text: "what time is my {booking_type} to {destination}"}
+- {id: query_03, intent: query_status, text: "is {relative_ref} still confirmed"}
+- {id: query_04, intent: query_status, text: "what's the status of {booking_ref}"}
+- {id: query_05, intent: query_status, text: "do I have anything booked on {date}"}
+- {id: query_06, intent: query_status, text: "tell me about {relative_ref}"}
+- {id: query_07, intent: query_status, text: "when am I flying to {destination}"}
+- {id: query_08, intent: query_status, text: "has {relative_ref} been cancelled"}
+- {id: query_09, intent: query_status, text: "what is my {booking_type=appointment} time with {provider}"}
+- {id: query_10, intent: query_status, text: "check my {booking_type} for {date}"}
+
+# --------------------------------------------------------------- confirm (8)
+# UC3's confirmation response is itself an utterance the NLP layer must classify.
+# Misreading one of these is the worst failure the system can produce, which is
+# why confirm and decline are first-class intents rather than a yes/no regex.
+- {id: confirm_01, intent: confirm_action, text: "yes go ahead"}
+- {id: confirm_02, intent: confirm_action, text: "yes please cancel it"}
+- {id: confirm_03, intent: confirm_action, text: "that's correct, do it"}
+- {id: confirm_04, intent: confirm_action, text: "yeah that's fine"}
+- {id: confirm_05, intent: confirm_action, text: "confirm"}
+- {id: confirm_06, intent: confirm_action, text: "go ahead and delete it"}
+- {id: confirm_07, intent: confirm_action, text: "ok do that"}
+- {id: confirm_08, intent: confirm_action, text: "yes I'm sure"}
+
+# --------------------------------------------------------------- decline (8)
+- {id: decline_01, intent: decline_action, text: "no don't do that"}
+- {id: decline_02, intent: decline_action, text: "leave it as it is"}
+- {id: decline_03, intent: decline_action, text: "no wait, don't cancel it"}
+- {id: decline_04, intent: decline_action, text: "actually never mind"}
+- {id: decline_05, intent: decline_action, text: "stop, keep it"}
+- {id: decline_06, intent: decline_action, text: "no that's not right"}
+- {id: decline_07, intent: decline_action, text: "cancel that, I mean don't cancel the flight"}
+- {id: decline_08, intent: decline_action, text: "hold on, leave the booking alone"}
+
+# ---------------------------------------------------------- out of scope (10)
+# Deliberately booking-adjacent. An out-of-scope utterance misread as an intent is
+# how an agent takes an action nobody asked for.
+- {id: oos_01, intent: out_of_scope, text: "what's the weather in {destination}"}
+- {id: oos_02, intent: out_of_scope, text: "how much does a flight to {destination} cost"}
+- {id: oos_03, intent: out_of_scope, text: "play some music"}
+- {id: oos_04, intent: out_of_scope, text: "how far is {destination} from {origin}"}
+- {id: oos_05, intent: out_of_scope, text: "set a timer for ten minutes"}
+- {id: oos_06, intent: out_of_scope, text: "what's the best time to visit {destination}"}
+- {id: oos_07, intent: out_of_scope, text: "remind me to call {provider}"}
+- {id: oos_08, intent: out_of_scope, text: "is {destination} airport busy today"}
+- {id: oos_09, intent: out_of_scope, text: "tell me a joke"}
+- {id: oos_10, intent: out_of_scope, text: "what time is it in {destination}"}

@@ -1,0 +1,318 @@
+# Family: reschedule -- FR3, FR4, FR5.
+# A reschedule overwrites the time of an event the user is relying on, so it is
+# destructive and gated exactly like a deletion.
+
+id: S-301
+family: reschedule
+use_case: UC2
+description: Airline moves the flight five hours later; the user confirms the overwrite.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    end: 2026-08-20T12:00
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+      end: 2026-08-20T17:30
+  - t: 10
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T14:45}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [reschedule]
+
+---
+
+id: S-302
+family: reschedule
+use_case: UC3
+description: User declines the reschedule -- the original event must survive untouched.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 10
+    type: user_confirm
+    request: 1
+    confirmed: false
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined]
+
+---
+
+id: S-303
+family: reschedule
+use_case: UC1
+description: User reschedules by voice; matched on title, with no vendor reference available.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Dentist checkup Dr Rao
+    type: appointment
+    start: 2026-08-22T17:30
+    alarm_offset_min: 30
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: rescheduled
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      datetime: 2026-08-22T19:00
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {title: Dentist checkup Dr Rao, start: 2026-08-22T19:00}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [reschedule]
+
+---
+
+id: S-304
+family: reschedule
+use_case: UC2
+description: Reschedule pushes the flight onto the following day -- still one booking, not two.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-21T20:00
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-21T20:00}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [reschedule]
+
+---
+
+id: S-305
+family: reschedule
+use_case: UC2
+description: >
+  Reschedule five days out, well beyond the 36-hour fuzzy-match window. The vendor
+  reference still identifies it, so it is an update rather than a stale event plus a
+  new one. This is why bookingRef was added to the class diagram.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-25T09:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-25T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [reschedule]
+
+---
+
+id: S-306
+family: reschedule
+use_case: UC2
+description: The airline moves the same flight twice. Each move needs its own confirmation.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: true
+  - t: 10
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T18:00
+  - t: 11
+    type: user_confirm
+    request: 2
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T18:00}
+  confirmations_requested: 2
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [reschedule, reschedule]
+  confirmation_statuses: [confirmed, confirmed]
+
+---
+
+id: S-307
+family: reschedule
+use_case: UC1
+description: >
+  Titles share no words; the booking is matched on location instead. Exercises the
+  third matching signal, which nothing else in the suite covers -- and confirms
+  that a reschedule moves the event WITHOUT renaming it: the calendar keeps
+  "Health checkup", the name the user already recognises.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Health checkup
+    type: appointment
+    location: Adyar Clinic
+    start: 2026-08-22T17:30
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: rescheduled
+      title: Dentist visit
+      location: Adyar Clinic
+      datetime: 2026-08-22T19:00
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {title: Health checkup, start: 2026-08-22T19:00}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [reschedule]
+
+---
+
+id: S-308
+family: reschedule
+use_case: UC3
+description: >
+  The user declines a reschedule, then the vendor sends it again. A declined request
+  must NOT suppress the new prompt -- suppression is for requests still awaiting an
+  answer, and treating "no" as permanent would hide a real change.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: false
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 2
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined, pending]

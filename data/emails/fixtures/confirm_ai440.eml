@@ -1,0 +1,13 @@
+From: bookings@airindia.example
+To: traveller@example.com
+Subject: Booking confirmed - AI440 to Chennai
+Date: Mon, 17 Aug 2026 12:00:00 +0530
+Message-ID: <confirm-ai440-1@airindia.example>
+
+Your booking is confirmed. Here is your e-ticket.
+
+Booking reference: AI440-XY12
+Flight: AI440 Bengaluru (BLR) to Chennai (MAA)
+Departure: 2026-08-20 09:15
+
+Happy travels.

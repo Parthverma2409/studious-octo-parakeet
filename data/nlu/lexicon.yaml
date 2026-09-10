@@ -1,0 +1,89 @@
+# Controlled slot-value lexicon for D1 generation.
+#
+# Values are resampled per generated utterance so that slot VALUES never
+# correlate with the train/test split -- only template families do. Keep the
+# registers mixed: the primary users are at VIT Chennai and speak Indian English,
+# so "prepone" and "kindly" belong here as much as "reschedule".
+
+booking_type:
+  - flight
+  - train
+  - hotel
+  - hotel room
+  - appointment
+
+city:
+  - Chennai
+  - Bangalore
+  - Delhi
+  - Mumbai
+  - Hyderabad
+  - Kolkata
+  - Pune
+  - Kochi
+  - Goa
+  - Jaipur
+  - Coimbatore
+  - Ahmedabad
+
+date:
+  - 20 August
+  - 3rd September
+  - 15th September
+  - tomorrow
+  - next Friday
+  - this Sunday
+  - Monday
+  - next Monday
+  - the 21st
+  - day after tomorrow
+  - next weekend
+  - 12 October
+
+time:
+  - 9:15 am
+  - 6:40 pm
+  - half past eight
+  - quarter to five
+  - "18:40"   # quoted: YAML 1.1 reads a bare 18:40 as the integer 1120
+  - noon
+  - midnight
+  - early morning
+  - late evening
+  - 7 in the morning
+
+provider:
+  - Dr Rao
+  - Dr Iyer
+  - Dr Menon
+  - Apollo Clinic
+  - Fortis Hospital
+  - Adyar Dental
+
+booking_ref:
+  - AI440-XY12
+  - 6E211-QQ01
+  - IR-55512
+  - TAJ-99871
+  - UK822-MN44
+  - SG105-PL73
+
+party_size:
+  - two
+  - three
+  - four
+  - "2"
+  - "5"
+  - a couple of
+
+# Whole phrases that refer to an EXISTING booking rather than describing a new one.
+# Templates never combine relative_ref with destination -- they are two different
+# ways of naming the same thing, and doing both produces utterances no one says.
+relative_ref:
+  - my Chennai flight
+  - the dentist appointment
+  - my hotel booking
+  - the morning train
+  - my return flight
+  - the Bangalore trip
+  - the evening flight

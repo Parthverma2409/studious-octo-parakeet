@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://booking-sync/schemas/trajectory-1.0.json",
+  "title": "Agent Trajectory",
+  "description": "FROZEN CONTRACT between the Sync Agent (Part A, FR7) and the Behaviour-Evaluation Platform (Part B, FR8). Do not change fields without bumping schema_version.",
+  "type": "object",
+  "required": ["trajectory_id", "project_id", "archetype", "agent", "task", "tool_calls", "actions", "outcome", "timing", "schema_version"],
+  "additionalProperties": false,
+  "properties": {
+    "trajectory_id": { "type": "string", "format": "uuid" },
+    "project_id": { "type": "string" },
+    "archetype": { "type": "string", "enum": ["tool_using_agent"], "description": "Selects the evaluator set in the EvaluatorRegistry (FR8)." },
+    "agent": {
+      "type": "object",
+      "required": ["model"],
+      "properties": {
+        "model": { "type": "string" },
+        "prompt_version": { "type": ["string", "null"] },
+        "commit": { "type": ["string", "null"] }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["source", "input"],
+      "properties": {
+        "source": { "type": "string", "enum": ["voice", "email", "system"] },
+        "input": { "type": "string" },
+        "use_case": { "type": ["string", "null"], "enum": ["UC1", "UC2", "UC3", "UC4", "UC5", null] }
+      }
+    },
+    "reasoning": {
+      "description": "Null when the model exposes no reasoning. RQ1 depends on this being explicitly nullable so the with/without ablation runs over identical trajectories.",
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["step", "text"],
+        "properties": {
+          "step": { "type": "integer" },
+          "text": { "type": "string" },
+          "ts": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "tool_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "args", "ok"],
+        "properties": {
+          "name": { "type": "string" },
+          "args": { "type": "object" },
+          "result": {},
+          "ok": { "type": "boolean" },
+          "error": { "type": ["string", "null"] },
+          "latency_ms": { "type": ["number", "null"] },
+          "ts": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "confirmed_by_user"],
+        "properties": {
+          "type": { "type": "string", "enum": ["CREATE", "UPDATE", "DELETE", "NOOP"] },
+          "target": { "type": ["string", "null"] },
+          "destructive": { "type": "boolean" },
+          "confirmed_by_user": { "type": ["boolean", "null"], "description": "null for non-destructive actions; must be true for any destructive one (FR5)." },
+          "confirmation_id": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["success", "failure", "refused", "error", "awaiting_confirmation"] },
+        "user_visible": { "type": ["string", "null"] }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "started": { "type": ["string", "null"] },
+        "ended": { "type": ["string", "null"] },
+        "total_ms": { "type": ["number", "null"] }
+      }
+    },
+    "scenario_id": {
+      "type": ["string", "null"],
+      "description": "Set when replayed from data/scenarios/. Links a trajectory to a known-correct expected outcome, turning judging into measurable accuracy."
+    },
+    "scores": { "type": ["object", "null"] },
+    "schema_version": { "type": "string", "const": "1.0" }
+  }
+}

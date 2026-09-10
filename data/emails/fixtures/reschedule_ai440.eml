@@ -1,0 +1,12 @@
+From: bookings@airindia.example
+To: traveller@example.com
+Subject: Schedule change for your flight AI440
+Date: Tue, 18 Aug 2026 09:00:00 +0530
+Message-ID: <resched-ai440-1@airindia.example>
+
+Your flight has been rescheduled owing to operational reasons.
+
+Booking reference: AI440-XY12
+New departure: 2026-08-20 14:45
+
+We apologise for the inconvenience.

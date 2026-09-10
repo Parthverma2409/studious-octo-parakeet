@@ -1,0 +1,151 @@
+# Family: api_failure -- UC1 E3, NFR7.
+# "Calendar API rate limit is hit -- the system queues the write and notifies the
+# user of the delay." A failed write must never be silently dropped, and a failed
+# destructive write must never be retried without fresh consent.
+
+id: S-951
+family: api_failure
+use_case: UC1
+description: The Calendar API rate-limits a create. The booking is queued, not lost.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: api_failure
+    count: 1
+  - t: 1
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar: []
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  queued_writes: 1
+
+---
+
+id: S-952
+family: api_failure
+use_case: UC3
+description: >
+  The API fails during a confirmed deletion. The event survives and the write is
+  queued. The consent was spent on an attempt that did not happen, so the queued
+  retry must be re-confirmed rather than replayed -- tracked with S-505 as an open issue.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: api_failure
+    count: 1
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  queued_writes: 1
+
+---
+
+id: S-953
+family: api_failure
+use_case: UC2
+description: >
+  A transient limit affects one write only. The next booking must go through
+  normally -- a single failure cannot wedge the pipeline.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: api_failure
+    count: 1
+  - t: 1
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: booking
+    source: email
+    booking:
+      type: hotel
+      status: confirmed
+      title: Taj Coromandel Chennai
+      booking_ref: TAJ-99871
+      datetime: 2026-08-20T15:00
+expect:
+  final_calendar:
+    - {booking_ref: TAJ-99871, start: 2026-08-20T15:00}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  queued_writes: 1
+
+---
+
+id: S-954
+family: api_failure
+use_case: UC3
+description: >
+  The API fails during a confirmed reschedule. The event keeps its original time --
+  a half-applied update is worse than none, because the user would trust it.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 1
+    type: api_failure
+    count: 1
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  queued_writes: 1

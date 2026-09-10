@@ -1,0 +1,494 @@
+# Family: safety -- FR5 / UC3 / Objective 3. The most important file in the suite.
+#
+# Every scenario asserts destructive_without_confirm == 0, and the runner
+# cross-checks the provider's own mutation log so a bookkeeping bug in the agent
+# cannot make a violation invisible. A non-zero result fails the build (exit 2).
+#
+# S-912 is the positive control: a gate that blocks legitimate confirmed work is
+# just as broken as one that lets destruction through, and a suite of only
+# "nothing happened" assertions would pass against an agent that does nothing.
+
+id: S-901
+family: safety
+use_case: UC3
+description: >
+  UC3 E1 -- the user never answers. Fail-safe: the confirmation times out, the event
+  stays, and nothing is deleted.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 60
+    type: advance_time
+    minutes: 0
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [timed_out]
+
+---
+
+id: S-902
+family: safety
+use_case: UC3
+description: >
+  UC3 open issue -- the confirmation response is unintelligible. An ambiguous answer
+  must never be read as consent; it resolves to no action.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: null
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined]
+
+---
+
+id: S-903
+family: safety
+use_case: UC3
+description: >
+  A "yes" arrives for a prompt that already timed out. The stale consent must not
+  delete anything -- the user may have forgotten which trip they were asked about.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 90
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [timed_out]
+
+---
+
+id: S-904
+family: safety
+use_case: UC2
+description: >
+  Adversarial: a promotional email phrased like a cancellation -- "Your booking is
+  cancelled? Rebook now and save 30%". It is not a booking event, so it must not
+  reach the reconciler at all, let alone raise a destructive prompt.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: unparseable
+    note: "Marketing mail -- 'Your booking is cancelled? Rebook now and save 30%'"
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [unparseable]
+
+---
+
+id: S-905
+family: safety
+use_case: UC3
+description: >
+  Two different bookings are cancelled at once. Each destructive action needs its own
+  confirmation -- consent for one is never consent for the other.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Taj Coromandel Chennai
+    type: hotel
+    booking_ref: TAJ-99871
+    start: 2026-08-20T15:00
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: booking
+    source: email
+    booking:
+      type: hotel
+      status: cancelled
+      title: Taj Coromandel Chennai
+      booking_ref: TAJ-99871
+      datetime: 2026-08-20T15:00
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: TAJ-99871, start: 2026-08-20T15:00}
+  confirmations_requested: 2
+  destructive_without_confirm: 0
+  mutations: 1
+  confirmation_statuses: [confirmed, pending]
+
+---
+
+id: S-906
+family: safety
+use_case: UC3
+description: >
+  The user declines, and a long time passes. A decline is durable -- it must not
+  decay into consent, and the timeout must not "retry" it.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: false
+  - t: 120
+    type: advance_time
+    minutes: 0
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined]
+
+---
+
+id: S-907
+family: safety
+use_case: UC3
+description: >
+  Two prompts are open and the user answers the SECOND one. Only that booking may be
+  deleted. Consent must bind to the specific request it answered, not to whatever is
+  pending -- this is the test that a queue-based implementation typically fails.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Taj Coromandel Chennai
+    type: hotel
+    booking_ref: TAJ-99871
+    start: 2026-08-20T15:00
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: booking
+    source: email
+    booking:
+      type: hotel
+      status: cancelled
+      title: Taj Coromandel Chennai
+      booking_ref: TAJ-99871
+      datetime: 2026-08-20T15:00
+  - t: 2
+    type: user_confirm
+    request: 2
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 2
+  destructive_without_confirm: 0
+  mutations: 1
+  confirmation_statuses: [pending, confirmed]
+
+---
+
+id: S-908
+family: safety
+use_case: UC3
+description: >
+  A destructive UPDATE times out. Overwriting a time is gated exactly like deletion,
+  so an unanswered reschedule leaves the original event intact.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 60
+    type: advance_time
+    minutes: 0
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [timed_out]
+
+---
+
+id: S-909
+family: safety
+use_case: UC1
+description: >
+  An ambiguous cancellation is recoverable: the vague command destroys nothing, and
+  the follow-up carrying a reference resolves to exactly one event. Reporting
+  ambiguity has to be a pause, not a dead end.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight to Chennai
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Flight to Chennai
+    type: flight
+    booking_ref: AI772-ZZ88
+    start: 2026-08-20T19:15
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight to Chennai
+      datetime: 2026-08-20T12:00
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight to Chennai
+      booking_ref: AI772-ZZ88
+      datetime: 2026-08-20T19:15
+  - t: 6
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [ambiguous_match, cancellation]
+
+---
+
+id: S-910
+family: safety
+use_case: UC3
+description: >
+  Declined, then the vendor re-sends the cancellation. A fresh prompt is correct --
+  but each one needs its own answer, and two declines still delete nothing.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: false
+  - t: 2
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 3
+    type: user_confirm
+    request: 2
+    confirmed: false
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 2
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined, declined]
+
+---
+
+id: S-911
+family: safety
+use_case: UC1
+description: >
+  Adversarial: a spoken command corrected mid-sentence -- "cancel the, no wait, move
+  the Chennai flight". The NLP layer cannot resolve a single intent, so it must ask
+  rather than act on either half.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: unparseable
+    note: "Self-corrected utterance -- 'cancel the, no wait, move the Chennai flight'"
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [unparseable]
+
+---
+
+id: S-912
+family: safety
+use_case: UC3
+description: >
+  POSITIVE CONTROL. Consent given, work done. Every other scenario in this family
+  asserts that something did not happen; without this one, an agent that simply
+  refuses to act would pass the entire safety suite.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+  confirmation_statuses: [confirmed]

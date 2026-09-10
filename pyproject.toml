@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "booking-sync"
+version = "0.1.0"
+description = "AI Booking-Lifecycle Sync Assistant + Behaviour-Evaluation Platform"
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "jsonschema>=4.20"]
+
+# Explicit, because this repo is a flat layout: `data/` and `schemas/` sit next
+# to `packages/`, and setuptools refuses to guess between them. Without this the
+# documented `pip install -e .` fails outright.
+[tool.setuptools.packages.find]
+include = ["packages*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"

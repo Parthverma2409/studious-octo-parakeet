@@ -1,0 +1,168 @@
+# Family: conflicting_sources -- FR3.
+# Voice and email disagree about the same booking. The vendor is usually
+# authoritative, but "usually" is not a licence to overwrite silently: the change
+# still goes through the FR5 gate so the user sees the conflict resolved.
+
+id: S-701
+family: conflicting_sources
+use_case: UC2
+description: >
+  The user booked by voice for 09:15; the vendor's email says 10:30. The vendor wins,
+  but only after the user confirms the overwrite.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 10
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T10:30
+  - t: 12
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T10:30}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [new_booking, reschedule]
+
+---
+
+id: S-702
+family: conflicting_sources
+use_case: UC1
+description: >
+  The reverse order: email created the event, then the user says a different time out
+  loud. The user's correction is gated exactly like the vendor's -- direction of
+  disagreement does not change who has to consent.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 10
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T11:00
+  - t: 11
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T11:00}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [new_booking, reschedule]
+
+---
+
+id: S-703
+family: conflicting_sources
+use_case: UC3
+description: >
+  The user says "cancel it" while the vendor is still sending confirmations. The
+  confirmation is recognised as describing the existing event (a no-op), and the
+  pending cancellation is applied only once the user confirms it.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 10
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation, duplicate_already_applied]
+
+---
+
+id: S-704
+family: conflicting_sources
+use_case: UC2
+description: >
+  Both sources agree exactly. Agreement must cost one write, not two -- the same
+  idempotency rule as a duplicate, reached through a different path.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking, duplicate_already_applied]

@@ -1,0 +1,237 @@
+# Family: ambiguous_match -- FR3, UC1 open issue.
+# When two calendar events are equally plausible, the engine reports the ambiguity
+# instead of choosing. Picking one and deleting it is exactly the failure FR5
+# exists to prevent, and a 50% chance of destroying the right event is not a
+# feature. Every case here asserts zero mutations.
+
+id: S-601
+family: ambiguous_match
+use_case: UC1
+description: Two flights to the same city on the same day; a spoken cancellation names neither.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight to Chennai morning
+    type: flight
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Flight to Chennai evening
+    type: flight
+    start: 2026-08-20T19:15
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight to Chennai
+      destination: Chennai
+      datetime: 2026-08-20T12:00
+expect:
+  final_calendar:
+    - {title: Flight to Chennai morning, start: 2026-08-20T09:15}
+    - {title: Flight to Chennai evening, start: 2026-08-20T19:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [ambiguous_match]
+
+---
+
+id: S-602
+family: ambiguous_match
+use_case: UC1
+description: >
+  Two appointments with the same provider on the same day. A reschedule cannot say
+  which one moved, so neither is touched.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Dentist checkup Dr Rao
+    type: appointment
+    start: 2026-08-22T10:00
+  - id: E2
+    title: Dentist checkup Dr Rao
+    type: appointment
+    start: 2026-08-22T17:30
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: rescheduled
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      datetime: 2026-08-22T19:00
+expect:
+  final_calendar:
+    - {title: Dentist checkup Dr Rao, start: 2026-08-22T10:00}
+    - {title: Dentist checkup Dr Rao, start: 2026-08-22T17:30}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [ambiguous_match]
+
+---
+
+id: S-603
+family: ambiguous_match
+use_case: UC2
+description: >
+  The same two look-alike events, but the cancellation carries a vendor reference.
+  Tier-1 matching resolves what fuzzy matching could not -- ambiguity is a fallback
+  problem, not an inherent one.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight to Chennai
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Flight to Chennai
+    type: flight
+    booking_ref: AI772-ZZ88
+    start: 2026-08-20T19:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight to Chennai
+      booking_ref: AI772-ZZ88
+      datetime: 2026-08-20T19:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+
+---
+
+id: S-604
+family: ambiguous_match
+use_case: UC2
+description: >
+  Two events share a title but differ in booking type. The type filter disambiguates
+  them, so this resolves to a normal gated cancellation rather than a stalemate.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Trip to Chennai
+    type: flight
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Trip to Chennai
+    type: hotel
+    start: 2026-08-20T15:00
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Trip to Chennai
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {title: Trip to Chennai, start: 2026-08-20T15:00}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+
+---
+
+id: S-605
+family: ambiguous_match
+use_case: UC1
+description: Three identical candidates -- ambiguity is not only a two-way problem.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight to Chennai
+    type: flight
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Flight to Chennai
+    type: flight
+    start: 2026-08-20T13:15
+  - id: E3
+    title: Flight to Chennai
+    type: flight
+    start: 2026-08-20T19:15
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight to Chennai
+      datetime: 2026-08-20T12:00
+expect:
+  final_calendar:
+    - {title: Flight to Chennai, start: 2026-08-20T09:15}
+    - {title: Flight to Chennai, start: 2026-08-20T13:15}
+    - {title: Flight to Chennai, start: 2026-08-20T19:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [ambiguous_match]
+
+---
+
+id: S-606
+family: ambiguous_match
+use_case: UC2
+description: >
+  A weak candidate (same start time, destination word in common) competes with a
+  strong one (exact title). The stronger match wins outright rather than the pair
+  being declared ambiguous -- over-reporting ambiguity would make the agent useless.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Trip to Chennai
+    type: flight
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Flight AI440 BLR to MAA
+    type: flight
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      destination: Chennai
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {title: Trip to Chennai, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]

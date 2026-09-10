@@ -1,0 +1,267 @@
+# Family: new_booking -- FR3 (nothing matches) + FR4 (create event + alarm).
+# Creation is non-destructive, so every case here must complete with ZERO
+# confirmation prompts. A system that asks before every write is as unusable as
+# one that never asks.
+
+id: S-101
+family: new_booking
+use_case: UC1
+description: Voice command books a flight; nothing in the calendar matches, so create it.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      destination: Chennai
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+      end: 2026-08-20T12:00
+      alarm_offset_min: 60
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-102
+family: new_booking
+use_case: UC2
+description: Hotel confirmation email for a date already holding an unrelated flight -- both coexist.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    end: 2026-08-20T12:00
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: hotel
+      status: confirmed
+      title: Taj Coromandel Chennai
+      hotel_name: Taj Coromandel
+      booking_ref: TAJ-99871
+      datetime: 2026-08-20T15:00
+      nights: 2
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+    - {booking_ref: TAJ-99871, start: 2026-08-20T15:00}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-103
+family: new_booking
+use_case: UC1
+description: Appointment booked by voice with no vendor reference at all -- must still create cleanly.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: confirmed
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      location: Adyar Clinic
+      datetime: 2026-08-22T17:30
+      alarm_offset_min: 30
+expect:
+  final_calendar:
+    - {title: Dentist checkup Dr Rao, start: 2026-08-22T17:30}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-104
+family: new_booking
+use_case: UC2
+description: Train booking far from an existing flight -- outside the reschedule window, so not a match.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: train
+      status: confirmed
+      title: Train 12658 MAS to SBC
+      train_number: "12658"
+      booking_ref: IR-55512
+      datetime: 2026-08-28T22:40
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+    - {booking_ref: IR-55512, start: 2026-08-28T22:40}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-105
+family: new_booking
+use_case: UC1
+description: Two unrelated bookings made in one session; both are created and both survive.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: confirmed
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      datetime: 2026-08-22T17:30
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+    - {title: Dentist checkup Dr Rao, start: 2026-08-22T17:30}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [new_booking, new_booking]
+
+---
+
+id: S-106
+family: new_booking
+use_case: UC1
+description: >
+  Booking with alarms suppressed (alarm_offset_min 0). The event is still created --
+  the alarm is optional, the calendar entry is not.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+      alarm_offset_min: 0
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-107
+family: new_booking
+use_case: UC2
+description: >
+  Flight to Chennai and a Chennai hotel on the same day. The titles overlap heavily,
+  so only the booking-type filter keeps these apart. Regression guard: without it,
+  the hotel would be read as a reschedule of the flight.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Trip to Chennai
+    type: flight
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: hotel
+      status: confirmed
+      title: Trip to Chennai
+      hotel_name: Taj Coromandel
+      booking_ref: TAJ-99871
+      datetime: 2026-08-20T15:00
+expect:
+  final_calendar:
+    - {title: Trip to Chennai, start: 2026-08-20T09:15}
+    - {booking_ref: TAJ-99871, start: 2026-08-20T15:00}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-108
+family: new_booking
+use_case: UC2
+description: >
+  A connecting itinerary -- two flights the same day under different references.
+  Both must be created; treating the second as a reschedule of the first would
+  silently lose a leg of the trip.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 1
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight 6E211 MAA to DEL
+      booking_ref: 6E211-QQ01
+      datetime: 2026-08-20T18:40
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+    - {booking_ref: 6E211-QQ01, start: 2026-08-20T18:40}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [new_booking, new_booking]

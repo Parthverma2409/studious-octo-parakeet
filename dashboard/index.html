@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booking-Sync Trajectory Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>Trajectory Dashboard</h1>
+  <p class="meta" id="build-meta">no data loaded</p>
+</header>
+
+<!-- Shown only when data/index.js failed to define the global. Without this the
+     page would look merely empty, which is the classic file:// failure mode. -->
+<div id="load-error" class="load-error" hidden>
+  <h2>No trajectory data loaded</h2>
+  <p>
+    <code>dashboard/data/index.js</code> did not define <code>window.TRAJECTORY_DATA</code>.
+    Generate it from the repository root:
+  </p>
+  <pre>./.venv/Scripts/python.exe -m packages.bench --all --dump-trajectories data/trajectories
+./.venv/Scripts/python.exe dashboard/build_index.py</pre>
+</div>
+
+<main id="app" hidden>
+
+  <section class="summary" aria-label="Summary statistics">
+    <div class="tiles" id="tiles"></div>
+    <div class="charts">
+      <figure class="chart">
+        <figcaption>Trajectories per scenario family, stacked by outcome status</figcaption>
+        <div id="family-chart"></div>
+        <div class="legend" id="chart-legend"></div>
+      </figure>
+    </div>
+  </section>
+
+  <section class="workspace">
+
+    <div class="panel list-panel">
+      <div class="filters">
+        <input type="search" id="f-search" placeholder="Search id, task, tool, action..." aria-label="Search">
+        <div class="filter-row">
+          <label>Status
+            <select id="f-status"><option value="">any</option></select>
+          </label>
+          <label>Family
+            <select id="f-family"><option value="">any</option></select>
+          </label>
+          <label>Destructive
+            <select id="f-destructive">
+              <option value="">any</option>
+              <option value="unconfirmed">unconfirmed only</option>
+              <option value="yes">has destructive action</option>
+              <option value="no">none</option>
+            </select>
+          </label>
+        </div>
+        <div class="filter-row">
+          <label class="checkbox"><input type="checkbox" id="f-quarantined"> show quarantined only</label>
+          <button type="button" id="f-reset">reset</button>
+        </div>
+        <p class="count" id="list-count"></p>
+      </div>
+      <ul class="traj-list" id="traj-list" tabindex="0" aria-label="Trajectories"></ul>
+    </div>
+
+    <div class="panel detail-panel" id="detail" tabindex="-1" aria-live="polite"></div>
+
+  </section>
+</main>
+
+<script src="data/index.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

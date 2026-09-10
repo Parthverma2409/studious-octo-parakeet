@@ -1,0 +1,214 @@
+# Family: cancellation -- FR4, FR5, UC3.
+# S-401 is the sequence diagram from the design document, replayed end to end.
+
+id: S-401
+family: cancellation
+use_case: UC2
+description: >
+  The design document's sequence diagram, end to end: a cancellation email arrives,
+  the engine raises a ConfirmationRequest, the traveller confirms, the event is
+  deleted, the alarm is cancelled and the interaction is logged.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 3
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+  confirmation_statuses: [confirmed]
+
+---
+
+id: S-402
+family: cancellation
+use_case: UC2
+description: Cancellation for a booking that was never in the calendar -- no prompt, no error.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight 6E211 MAA to DEL
+      booking_ref: 6E211-QQ01
+      datetime: 2026-08-25T06:00
+expect:
+  final_calendar: []
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [already_cancelled]
+
+---
+
+id: S-403
+family: cancellation
+use_case: UC1
+description: Spoken cancellation matched by title alone, with no vendor reference.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Dentist checkup Dr Rao
+    type: appointment
+    start: 2026-08-22T17:30
+    alarm_offset_min: 30
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: cancelled
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      datetime: 2026-08-22T17:30
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+
+---
+
+id: S-404
+family: cancellation
+use_case: UC2
+description: >
+  One of two bookings is cancelled. The correct event must be removed and the other
+  left completely alone -- deleting the wrong trip is the worst outcome this system
+  can produce.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+  - id: E2
+    title: Taj Coromandel Chennai
+    type: hotel
+    booking_ref: TAJ-99871
+    start: 2026-08-20T15:00
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: hotel
+      status: cancelled
+      title: Taj Coromandel Chennai
+      booking_ref: TAJ-99871
+      datetime: 2026-08-20T15:00
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+
+---
+
+id: S-405
+family: cancellation
+use_case: UC2
+description: >
+  Cancelling a train booking removes the event and its alarm together. An orphaned
+  alarm for a cancelled trip is the misleading reminder Objective 1 exists to stop.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Train 12658 MAS to SBC
+    type: train
+    booking_ref: IR-55512
+    start: 2026-08-28T22:40
+    alarm_offset_min: 90
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: train
+      status: cancelled
+      title: Train 12658 MAS to SBC
+      booking_ref: IR-55512
+      datetime: 2026-08-28T22:40
+  - t: 1
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation]
+
+---
+
+id: S-406
+family: cancellation
+use_case: UC3
+description: User declines the cancellation -- the event and its alarm stay exactly as they were.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: false
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined]

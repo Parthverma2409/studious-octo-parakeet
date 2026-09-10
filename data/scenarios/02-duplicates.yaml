@@ -1,0 +1,332 @@
+# Family: duplicate_notification -- NFR2.
+# "Matching shall be idempotent under repeated notifications of the same change."
+# The assertion that matters here is `mutations`: repeating a notification must
+# not add a second calendar write or raise a second prompt. Two calendars can
+# look identical while one got there by writing three times -- that is the failure.
+
+id: S-201
+family: duplicate_notification
+use_case: UC2
+description: The same confirmation email is delivered twice; the second must be a no-op.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 30
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking, duplicate_already_applied]
+
+---
+
+id: S-202
+family: duplicate_notification
+use_case: UC2
+description: Duplicate cancellation arrives before the user answers -- one prompt, not two.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 10
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+
+---
+
+id: S-203
+family: duplicate_notification
+use_case: UC2
+description: Cancellation re-sent after it was already applied -- nothing left to delete, no new prompt.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 5
+    type: user_confirm
+    request: 1
+    confirmed: true
+  - t: 60
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation, already_cancelled]
+
+---
+
+id: S-204
+family: duplicate_notification
+use_case: UC2
+description: Vendor re-sends the same reschedule twice; the second sees the calendar already correct.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+    alarm_offset_min: 60
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 5
+    type: user_confirm
+    request: 1
+    confirmed: true
+  - t: 20
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T14:45}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [reschedule, duplicate_already_applied]
+
+---
+
+id: S-205
+family: duplicate_notification
+use_case: UC2
+description: >
+  A vendor mail loop delivers the same confirmation three times. Idempotency has to
+  hold for N repeats, not just two.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 10
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 20
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking, duplicate_already_applied, duplicate_already_applied]
+
+---
+
+id: S-206
+family: duplicate_notification
+use_case: UC2
+description: >
+  The re-sent confirmation differs by 30 seconds because the vendor re-rounded the
+  departure time. That is the same booking, not a reschedule -- treating it as one
+  would raise a needless destructive prompt.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15:30
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [duplicate_already_applied]
+
+---
+
+id: S-207
+family: duplicate_notification
+use_case: UC1
+description: >
+  The user repeats a spoken booking because they did not hear the confirmation.
+  Idempotency has to hold on the voice path too, not just on email.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: confirmed
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      datetime: 2026-08-22T17:30
+  - t: 1
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: confirmed
+      title: Dentist checkup Dr Rao
+      provider: Dr Rao
+      datetime: 2026-08-22T17:30
+expect:
+  final_calendar:
+    - {title: Dentist checkup Dr Rao, start: 2026-08-22T17:30}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking, duplicate_already_applied]
+
+---
+
+id: S-208
+family: duplicate_notification
+use_case: UC3
+description: >
+  Duplicate cancellations, then the user declines. One prompt was raised, the
+  decline applies to it, and the event survives.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 4
+    type: user_confirm
+    request: 1
+    confirmed: false
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 0
+  confirmation_statuses: [declined]

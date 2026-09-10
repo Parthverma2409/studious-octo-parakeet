@@ -1,0 +1,153 @@
+# Family: partial_input -- UC2 E1.
+# "The email cannot be parsed into structured fields -- the system leaves the
+# calendar untouched and flags the item for manual review."
+# The failure mode being guarded against is a confident guess from thin data.
+
+id: S-801
+family: partial_input
+use_case: UC2
+description: An itinerary attached as a PDF with no date in the body -- unparseable, calendar untouched.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: unparseable
+    note: "Itinerary attached as a PDF; body carries no date or reference"
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [unparseable]
+
+---
+
+id: S-802
+family: partial_input
+use_case: UC2
+description: >
+  Two unparseable emails in a row. Repeated failure must not escalate into a guess --
+  the second is flagged like the first.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: unparseable
+    note: "Vendor mail in an unsupported template"
+  - t: 5
+    type: unparseable
+    note: "Follow-up in the same unsupported template"
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 0
+  decisions: [unparseable, unparseable]
+
+---
+
+id: S-803
+family: partial_input
+use_case: UC2
+description: An unparseable email does not poison the pipeline -- the next valid booking still lands.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: unparseable
+    note: "Promotional mail with a booking-shaped subject line"
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [unparseable, new_booking]
+
+---
+
+id: S-804
+family: partial_input
+use_case: UC1
+description: >
+  A booking with no end time and no vendor reference -- the minimum viable booking.
+  It is still created; partial data is a reason to create less, not to do nothing.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: voice
+    booking:
+      type: appointment
+      status: confirmed
+      title: Physio session
+      datetime: 2026-08-24T11:00
+expect:
+  final_calendar:
+    - {title: Physio session, start: 2026-08-24T11:00}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-805
+family: partial_input
+use_case: UC3
+description: >
+  An unparseable email arrives while a destructive confirmation is pending. It must
+  not disturb the open request, and the user's later "yes" must still apply to the
+  cancellation they were actually asked about.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: unparseable
+    note: "Unrelated vendor mail in an unsupported template"
+  - t: 4
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation, unparseable]

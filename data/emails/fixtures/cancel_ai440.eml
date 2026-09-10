@@ -1,0 +1,18 @@
+From: bookings@airindia.example
+To: traveller@example.com
+Subject: Your flight AI440 has been cancelled
+Date: Tue, 18 Aug 2026 08:00:00 +0530
+Message-ID: <cancel-ai440-1@airindia.example>
+
+Dear Traveller,
+
+We regret to inform you that your booking has been cancelled.
+
+Booking reference: AI440-XY12
+Flight: AI440 Bengaluru (BLR) to Chennai (MAA)
+Departure: 2026-08-20 09:15
+
+No further action is required from your side. A refund will be processed
+to the original payment method within 7 working days.
+
+Air India Bookings

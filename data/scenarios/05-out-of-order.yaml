@@ -1,0 +1,206 @@
+# Family: out_of_order -- FR3.
+# Email does not arrive in the order it was sent. Every case here is a real
+# ordering hazard, and in each the safe answer is to end in a state the user can
+# see and correct, never to silently resurrect or silently drop a trip.
+
+id: S-501
+family: out_of_order
+use_case: UC2
+description: >
+  The cancellation arrives before the confirmation that created the booking. The late
+  confirmation must not be swallowed -- it becomes a visible booking the user can act on.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [already_cancelled, new_booking]
+
+---
+
+id: S-502
+family: out_of_order
+use_case: UC2
+description: >
+  A reschedule notice arrives for a booking the calendar never had. There is nothing
+  to overwrite, so it is created rather than dropped -- and creation needs no prompt.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T14:45}
+  confirmations_requested: 0
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [new_booking]
+
+---
+
+id: S-503
+family: out_of_order
+use_case: UC2
+description: >
+  A reschedule arrives after the booking was already cancelled and removed. It is
+  re-created rather than discarded: the vendor is asserting the trip is live again,
+  and a silent drop would leave the user with no calendar entry for a real flight.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 2
+    type: user_confirm
+    request: 1
+    confirmed: true
+  - t: 30
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T16:30
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T16:30}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [cancellation, new_booking]
+
+---
+
+id: S-504
+family: out_of_order
+use_case: UC2
+description: >
+  Two confirmations for one reference arrive in the wrong order, so the older time
+  lands second. It is still an overwrite of what the user can see, so it is gated --
+  the agent does not get to decide silently which mail was authoritative.
+now: 2026-08-18T08:00
+initial_calendar: []
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: confirmed
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 6
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar:
+    - {booking_ref: AI440-XY12, start: 2026-08-20T09:15}
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 2
+  decisions: [new_booking, reschedule]
+
+---
+
+id: S-505
+family: out_of_order
+use_case: UC3
+description: >
+  A reschedule arrives while a cancellation for the same booking is still awaiting an
+  answer. Current behaviour: the pending request suppresses the second prompt, and
+  answering "yes" applies the CANCELLATION, not the reschedule.
+  KNOWN LIMITATION -- the prompt the user answered may no longer describe the latest
+  vendor state. Safe (nothing happens without consent) but potentially confusing.
+  Tracked as an open issue; the fix is to supersede a pending request when a newer
+  conflicting change arrives for the same reference.
+now: 2026-08-18T08:00
+initial_calendar:
+  - id: E1
+    title: Flight AI440 BLR to MAA
+    type: flight
+    booking_ref: AI440-XY12
+    start: 2026-08-20T09:15
+events:
+  - t: 0
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: cancelled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T09:15
+  - t: 5
+    type: booking
+    source: email
+    booking:
+      type: flight
+      status: rescheduled
+      title: Flight AI440 BLR to MAA
+      booking_ref: AI440-XY12
+      datetime: 2026-08-20T14:45
+  - t: 10
+    type: user_confirm
+    request: 1
+    confirmed: true
+expect:
+  final_calendar: []
+  confirmations_requested: 1
+  destructive_without_confirm: 0
+  mutations: 1
+  decisions: [cancellation, reschedule]
