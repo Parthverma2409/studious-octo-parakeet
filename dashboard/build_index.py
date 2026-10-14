@@ -45,6 +45,23 @@ def load_schema(path: Path = SCHEMA_PATH) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_scenarios(scenario_dir: Path = DEFAULT_SCENARIO_DIR) -> dict[str, dict[str, Any]]:
+    """Map scenario id -> scenario document. Missing or unreadable input is not
+    fatal: the dashboard degrades rather than refusing to build."""
+    scenarios: dict[str, dict[str, Any]] = {}
+    if not scenario_dir.is_dir():
+        return scenarios
+    for path in sorted(scenario_dir.glob("*.yaml")):
+        try:
+            documents = list(yaml.safe_load_all(path.read_text(encoding="utf-8")))
+        except yaml.YAMLError:
+            continue
+        for document in documents:
+            if isinstance(document, dict) and document.get("id"):
+                scenarios[str(document["id"])] = document
+    return scenarios
+
+
 def load_family_map(scenario_dir: Path = DEFAULT_SCENARIO_DIR) -> dict[str, str]:
     """Map scenario id -> family.
 
@@ -53,18 +70,131 @@ def load_family_map(scenario_dir: Path = DEFAULT_SCENARIO_DIR) -> dict[str, str]
     place that knows it. A missing or unreadable scenario directory is not fatal:
     the dashboard degrades to `(unknown)` rather than refusing to build.
     """
-    families: dict[str, str] = {}
-    if not scenario_dir.is_dir():
-        return families
-    for path in sorted(scenario_dir.glob("*.yaml")):
-        try:
-            documents = list(yaml.safe_load_all(path.read_text(encoding="utf-8")))
-        except yaml.YAMLError:
-            continue
-        for document in documents:
-            if isinstance(document, dict) and document.get("id"):
-                families[str(document["id"])] = str(document.get("family") or UNKNOWN_FAMILY)
-    return families
+    return {
+        sid: str(doc.get("family") or UNKNOWN_FAMILY)
+        for sid, doc in load_scenarios(scenario_dir).items()
+    }
+
+
+def _iso(value: Any) -> str | None:
+    """YAML parses `2026-08-20T09:15` into a datetime; the page wants ISO text."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.replace(microsecond=0).isoformat()
+    return str(value)
+
+
+def build_calendar(
+    scenarios: dict[str, dict[str, Any]],
+    records_by_scenario: dict[str, tuple[str, dict[str, Any]]],
+) -> dict[str, Any]:
+    """Every calendar event the scenario suite knows about, in one flat list.
+
+    Two origins: `calendar` rows are the events seeded into the calendar before
+    the scenario runs (`initial_calendar`), `booking` rows are the bookings that
+    arrive during it. Calendar rows are joined to the captured trajectory so the
+    page can show what the agent did to each event (DELETE / UPDATE, confirmed or
+    not) and whether the scenario expected it to survive.
+    """
+    events: list[dict[str, Any]] = []
+    clocks: list[str] = []
+
+    for sid in sorted(scenarios):
+        doc = scenarios[sid]
+        family = str(doc.get("family") or UNKNOWN_FAMILY)
+        key, record = records_by_scenario.get(sid, (None, None))
+        actions = (record or {}).get("actions") or []
+        outcome = ((record or {}).get("outcome") or {}).get("status")
+        now = _iso(doc.get("now"))
+        if now:
+            clocks.append(now)
+
+        expect = doc.get("expect") if isinstance(doc.get("expect"), dict) else {}
+        final = expect.get("final_calendar")
+        kept_refs: set[str] = set()
+        kept_ids: set[str] = set()
+        if isinstance(final, list):
+            for item in final:
+                if isinstance(item, dict):
+                    if item.get("booking_ref"):
+                        kept_refs.add(str(item["booking_ref"]))
+                    if item.get("id"):
+                        kept_ids.add(str(item["id"]))
+                elif item is not None:
+                    kept_ids.add(str(item))
+
+        for event in doc.get("initial_calendar") or []:
+            if not isinstance(event, dict):
+                continue
+            event_id = str(event.get("id") or "")
+            hit = next((a for a in actions if str(a.get("target")) == event_id), None)
+            events.append(
+                {
+                    "scenario_id": sid,
+                    "family": family,
+                    "trajectory_key": key,
+                    "outcome": outcome,
+                    "origin": "calendar",
+                    "event_id": event_id or None,
+                    "title": str(event.get("title") or "(untitled)"),
+                    "type": str(event.get("type") or "other"),
+                    "start": _iso(event.get("start")),
+                    "end": _iso(event.get("end")),
+                    "booking_ref": event.get("booking_ref"),
+                    "location": event.get("location"),
+                    "source": None,
+                    "status": None,
+                    "t": None,
+                    "action": (
+                        {
+                            "type": str(hit.get("type")),
+                            "destructive": bool(hit.get("destructive")),
+                            "confirmed": hit.get("confirmed_by_user") is True,
+                        }
+                        if hit
+                        else None
+                    ),
+                    "kept": (
+                        (str(event.get("booking_ref")) in kept_refs) or (event_id in kept_ids)
+                        if isinstance(final, list)
+                        else None
+                    ),
+                }
+            )
+
+        for item in doc.get("events") or []:
+            if not isinstance(item, dict) or item.get("type") != "booking":
+                continue
+            booking = item.get("booking") if isinstance(item.get("booking"), dict) else {}
+            events.append(
+                {
+                    "scenario_id": sid,
+                    "family": family,
+                    "trajectory_key": key,
+                    "outcome": outcome,
+                    "origin": "booking",
+                    "event_id": None,
+                    "title": str(booking.get("title") or "(untitled)"),
+                    "type": str(booking.get("type") or "other"),
+                    "start": _iso(booking.get("datetime")),
+                    "end": _iso(booking.get("end")),
+                    "booking_ref": booking.get("booking_ref"),
+                    "location": booking.get("location") or booking.get("destination"),
+                    "source": item.get("source"),
+                    "status": booking.get("status"),
+                    "t": item.get("t"),
+                    "action": None,
+                    "kept": None,
+                }
+            )
+
+    events.sort(key=lambda e: (e["start"] or "", e["scenario_id"], e["origin"]))
+    return {
+        "now": max(clocks) if clocks else None,
+        "events": events,
+        "types": sorted({e["type"] for e in events}),
+    }
 
 
 def _first_line(text: str, limit: int = 160) -> str:
@@ -204,7 +334,8 @@ def build(
     """Read every trajectory file, validate it, and return the whole index."""
     schema = load_schema(schema_path)
     validator = Draft202012Validator(schema)
-    families = load_family_map(scenario_dir)
+    scenarios = load_scenarios(scenario_dir)
+    families = {sid: str(doc.get("family") or UNKNOWN_FAMILY) for sid, doc in scenarios.items()}
 
     summaries: list[dict[str, Any]] = []
     records: dict[str, Any] = {}
@@ -274,6 +405,10 @@ def build(
         "trajectories": summaries,
         "records": records,
         "quarantined": quarantined,
+        "calendar": build_calendar(
+            scenarios,
+            {str(r.get("scenario_id")): (k, r) for k, r in records.items() if r.get("scenario_id")},
+        ),
     }
 
 

@@ -31,6 +31,10 @@ the frozen contract in `schemas/trajectory.schema.json`, and writes two files:
 | `dashboard/data/index.json` | for tooling and tests |
 | `dashboard/data/index.js` | `window.TRAJECTORY_DATA = {...}` -- what the page actually loads |
 
+The index also carries `calendar` (see below), read from the scenario YAML rather
+than the trajectories, because the frozen trajectory schema has no room for event
+titles or dates.
+
 Both hold identical content. The `.js` copy exists because browsers block
 `fetch()` of local JSON over `file://`; a `<script src>` tag is never blocked. If
 you change the build, keep that property or the dashboard will show an empty page
@@ -42,6 +46,25 @@ carry its own family label. If the scenario directory is missing, families degra
 to `(unknown)` and the build still succeeds.
 
 ## What it shows
+
+Three views, switched from the sidebar (or by URL hash: `#overview`,
+`#trajectories`, `#calendar`, `#calendar/2026-08-20`, `#S-604`).
+
+**Overview.** KPI tiles (trajectories, success rate, the FR5 gate, refusals, tool
+call failures, quarantine), outcome mix, trajectories per family stacked by
+outcome, tool calls by name, a "needs attention" table (unconfirmed destructive
+actions first, then failures, tool errors, pending confirmations) and the next
+few days of calendar activity. Every row and bar links into the drill-down.
+
+**Calendar.** Built from `data/scenarios/*.yaml` at build time: the events seeded
+into each scenario's `initial_calendar` plus every booking that arrives during it,
+joined to the captured trajectory so each calendar event shows what the agent
+did to it (DELETE / UPDATE, confirmed or not) and whether `expect.final_calendar`
+said it should survive. Month grid and agenda modes; filters by origin, event
+type, family and free text; clicking a day lists everything on it grouped by
+scenario, and clicking an event opens its trajectory. The "scenario clock" button
+jumps to the frozen `now` (2026-08-18). Identical fixture events across many
+scenarios collapse into one chip in the month grid; the day panel shows them all.
 
 **Drill-down (the point of the thing).** Selecting a trajectory lays it out in
 reading order: task -> reasoning steps -> tool calls (name, args, result, ok flag,

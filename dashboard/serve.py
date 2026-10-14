@@ -21,6 +21,16 @@ from pathlib import Path
 DASHBOARD_DIR = Path(__file__).resolve().parent
 
 
+class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    """Static files, never cached. The page is rebuilt in place, and a browser
+    holding yesterday's stylesheet against today's markup renders garbage."""
+
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dashboard/serve.py")
     parser.add_argument("--port", type=int, default=8000)
@@ -31,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     if not (args.root / "data" / "index.js").exists():
         print("warning: %s missing -- run: python dashboard/build_index.py" % (args.root / "data" / "index.js"))
 
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(args.root))
+    handler = functools.partial(NoCacheHandler, directory=str(args.root))
     with socketserver.TCPServer((args.bind, args.port), handler) as httpd:
         print("serving %s at %s:%d  (ctrl-c to stop)" % (args.root, args.bind, args.port))
         try:

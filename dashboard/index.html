@@ -8,11 +8,6 @@
 </head>
 <body>
 
-<header class="topbar">
-  <h1>Trajectory Dashboard</h1>
-  <p class="meta" id="build-meta">no data loaded</p>
-</header>
-
 <!-- Shown only when data/index.js failed to define the global. Without this the
      page would look merely empty, which is the classic file:// failure mode. -->
 <div id="load-error" class="load-error" hidden>
@@ -25,53 +20,218 @@
 ./.venv/Scripts/python.exe dashboard/build_index.py</pre>
 </div>
 
-<main id="app" hidden>
+<div id="app" class="shell" hidden>
 
-  <section class="summary" aria-label="Summary statistics">
-    <div class="tiles" id="tiles"></div>
-    <div class="charts">
-      <figure class="chart">
-        <figcaption>Trajectories per scenario family, stacked by outcome status</figcaption>
-        <div id="family-chart"></div>
-        <div class="legend" id="chart-legend"></div>
-      </figure>
-    </div>
-  </section>
-
-  <section class="workspace">
-
-    <div class="panel list-panel">
-      <div class="filters">
-        <input type="search" id="f-search" placeholder="Search id, task, tool, action..." aria-label="Search">
-        <div class="filter-row">
-          <label>Status
-            <select id="f-status"><option value="">any</option></select>
-          </label>
-          <label>Family
-            <select id="f-family"><option value="">any</option></select>
-          </label>
-          <label>Destructive
-            <select id="f-destructive">
-              <option value="">any</option>
-              <option value="unconfirmed">unconfirmed only</option>
-              <option value="yes">has destructive action</option>
-              <option value="no">none</option>
-            </select>
-          </label>
-        </div>
-        <div class="filter-row">
-          <label class="checkbox"><input type="checkbox" id="f-quarantined"> show quarantined only</label>
-          <button type="button" id="f-reset">reset</button>
-        </div>
-        <p class="count" id="list-count"></p>
+  <aside class="sidebar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+        <path d="M3 9h18M8 2v4M16 2v4"></path>
+        <path d="M8 14l3 3 5-6"></path>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-name">Booking-Sync</span>
+        <span class="brand-sub">Agent dashboard</span>
       </div>
-      <ul class="traj-list" id="traj-list" tabindex="0" aria-label="Trajectories"></ul>
     </div>
 
-    <div class="panel detail-panel" id="detail" tabindex="-1" aria-live="polite"></div>
+    <nav class="nav" aria-label="Views">
+      <a class="nav-item" id="nav-overview" href="#overview">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg>
+        <span>Overview</span>
+      </a>
+      <a class="nav-item" id="nav-trajectories" href="#trajectories">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="19" cy="17" r="2.5"/></svg>
+        <span>Trajectories</span>
+        <span class="nav-count" id="nav-traj-count"></span>
+      </a>
+      <a class="nav-item" id="nav-calendar" href="#calendar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h3M13 14h3M8 18h3"/></svg>
+        <span>Calendar</span>
+        <span class="nav-count" id="nav-cal-count"></span>
+      </a>
+    </nav>
 
-  </section>
-</main>
+    <div class="sidebar-foot">
+      <div class="side-kv"><span>Model</span><b id="side-model"></b></div>
+      <div class="side-kv"><span>Schema</span><b id="side-schema"></b></div>
+      <div class="side-kv"><span>Built</span><b id="side-built"></b></div>
+      <p class="meta" id="build-meta"></p>
+    </div>
+  </aside>
+
+  <div class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 id="view-title">Overview</h1>
+        <p class="topbar-sub" id="view-sub"></p>
+      </div>
+      <div class="topbar-right">
+        <span class="gate-chip" id="gate-chip"></span>
+        <button type="button" class="icon-btn" id="theme-toggle" aria-label="Toggle colour theme" title="Toggle theme">
+          <svg class="ico-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path>
+          </svg>
+          <svg class="ico-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============ Overview ============ -->
+    <main class="view page" id="view-overview" hidden>
+
+      <section class="overview" aria-label="Key figures">
+        <div class="section-head">
+          <h2>Key figures</h2>
+          <p class="section-sub" id="overview-sub"></p>
+        </div>
+        <div class="tiles" id="tiles"></div>
+      </section>
+
+      <section class="charts" aria-label="Charts">
+        <figure class="card chart chart-status">
+          <figcaption>
+            <span class="card-title">Outcome mix</span>
+            <span class="card-sub">all valid trajectories by final status</span>
+          </figcaption>
+          <div id="status-chart"></div>
+        </figure>
+
+        <figure class="card chart chart-family">
+          <figcaption>
+            <span class="card-title">Trajectories per scenario family</span>
+            <span class="card-sub">stacked by outcome status</span>
+          </figcaption>
+          <div id="family-chart"></div>
+          <div class="legend" id="chart-legend"></div>
+        </figure>
+
+        <figure class="card chart chart-tools">
+          <figcaption>
+            <span class="card-title">Tool calls by name</span>
+            <span class="card-sub" id="tools-sub"></span>
+          </figcaption>
+          <div id="tools-chart"></div>
+        </figure>
+      </section>
+
+      <section class="bottom-row" aria-label="Needs attention and upcoming">
+        <div class="card table-card">
+          <div class="card-head">
+            <span class="card-title">Needs attention</span>
+            <span class="card-sub" id="attention-sub"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="tbl" id="attention"></table>
+          </div>
+        </div>
+        <div class="card table-card">
+          <div class="card-head">
+            <span class="card-title">Upcoming on the calendar</span>
+            <span class="card-sub" id="upcoming-sub"></span>
+          </div>
+          <div class="upcoming" id="upcoming"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ Trajectories ============ -->
+    <main class="view page" id="view-trajectories" hidden>
+      <section class="workspace" aria-label="Trajectory explorer">
+
+        <div class="card panel list-panel">
+          <div class="filters">
+            <div class="search-wrap">
+              <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+              </svg>
+              <input type="search" id="f-search" placeholder="Search id, task, tool, action..." aria-label="Search">
+            </div>
+            <div class="filter-row">
+              <label>Status
+                <select id="f-status"><option value="">any</option></select>
+              </label>
+              <label>Family
+                <select id="f-family"><option value="">any</option></select>
+              </label>
+              <label>Destructive
+                <select id="f-destructive">
+                  <option value="">any</option>
+                  <option value="unconfirmed">unconfirmed only</option>
+                  <option value="yes">has destructive action</option>
+                  <option value="no">none</option>
+                </select>
+              </label>
+            </div>
+            <div class="filter-row filter-foot">
+              <label class="checkbox"><input type="checkbox" id="f-quarantined"> quarantined only</label>
+              <button type="button" class="btn-ghost" id="f-reset">Reset</button>
+            </div>
+            <p class="count" id="list-count"></p>
+          </div>
+          <ul class="traj-list" id="traj-list" tabindex="0" aria-label="Trajectories"></ul>
+        </div>
+
+        <div class="card panel detail-panel" id="detail" tabindex="-1" aria-live="polite"></div>
+
+      </section>
+    </main>
+
+    <!-- ============ Calendar ============ -->
+    <main class="view page" id="view-calendar" hidden>
+
+      <div class="cal-toolbar card">
+        <div class="cal-nav">
+          <button type="button" class="icon-btn" id="cal-prev" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <button type="button" class="icon-btn" id="cal-next" aria-label="Next month">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <button type="button" class="btn-ghost" id="cal-today">Scenario clock</button>
+          <h2 class="cal-title" id="cal-title"></h2>
+        </div>
+        <div class="cal-filters">
+          <div class="seg-ctl" role="tablist" aria-label="Calendar mode">
+            <button type="button" class="seg-btn is-on" id="cal-mode-month" role="tab">Month</button>
+            <button type="button" class="seg-btn" id="cal-mode-agenda" role="tab">Agenda</button>
+          </div>
+          <select id="cal-origin" aria-label="Origin">
+            <option value="">calendar + bookings</option>
+            <option value="calendar">calendar events</option>
+            <option value="booking">incoming bookings</option>
+          </select>
+          <select id="cal-type" aria-label="Type"><option value="">any type</option></select>
+          <select id="cal-family" aria-label="Family"><option value="">any family</option></select>
+          <div class="search-wrap cal-search">
+            <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+            </svg>
+            <input type="search" id="cal-search" placeholder="Title, ref, scenario..." aria-label="Search calendar">
+          </div>
+        </div>
+      </div>
+
+      <div class="cal-stats" id="cal-stats"></div>
+
+      <div class="cal-body">
+        <div class="card cal-main">
+          <div class="cal-grid" id="cal-grid" role="grid" aria-label="Month"></div>
+          <div class="cal-agenda" id="cal-agenda" hidden></div>
+          <div class="legend cal-legend" id="cal-legend"></div>
+        </div>
+        <aside class="card cal-day" id="cal-day" aria-live="polite"></aside>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden role="status"></div>
 
 <script src="data/index.js"></script>
 <script src="app.js"></script>
